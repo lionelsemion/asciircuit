@@ -1,35 +1,34 @@
 import re
+from typing import Callable
 
 
-INPUT_COUNT = {
-    "not": 1,
-    "and": 2,
-    "or": 2,
-    "nand": 2,
-    "nor": 2,
-    "xor": 2,
-    "xnor": 2,
+class Gate:
+    inputs: list[str]
+    outputs: list[str]
+    operator: Callable[[tuple[bool]], tuple[bool]]
+
+    def __init__(
+        self,
+        inputs: list[str],
+        outputs: list[str],
+        operator: Callable[[tuple[bool]], tuple[bool]],
+    ) -> None:
+        self.inputs = inputs
+        self.outputs = outputs
+        self.operator = operator
+
+
+STANDARD_GATES: list[Gate] = {
+    "not": Gate(["X0"], ["Y0"], lambda x: (not x[0],)),
+    "and": Gate(["X0", "X1"], ["Y0"], lambda x: (x[0] and x[1],)),
+    "or": Gate(["X0", "X1"], ["Y0"], lambda x: (x[0] or x[1],)),
+    "nand": Gate(["X0", "X1"], ["Y0"], lambda x: (not (x[0] and x[1]),)),
+    "nor": Gate(["X0", "X1"], ["Y0"], lambda x: (not (x[0] or x[1]),)),
+    "xor": Gate(["X0", "X1"], ["Y0"], lambda x: (x[0] == x[1],)),
+    "xnor": Gate(["X0", "X1"], ["Y0"], lambda x: (x[0] != x[1],)),
 }
 
-OUTPUT_COUNT = {
-    "not": 1,
-    "and": 1,
-    "or": 1,
-    "nand": 1,
-    "nor": 1,
-    "xor": 1,
-    "xnor": 1,
-}
-
-OPERATORS = {
-    "not": lambda x: (not x[0],),
-    "and": lambda x: (x[0] and x[1],),
-    "or": lambda x: (x[0] or x[1],),
-    "nand": lambda x: (not (x[0] and x[1]),),
-    "nor": lambda x: (not (x[0] or x[1]),),
-    "xor": lambda x: (x[0] != x[1],),
-    "xnor": lambda x: (x[0] == x[1],),
-}
+GLOBAL_GATES = STANDARD_GATES.copy()
 
 
 class MDTable:
@@ -136,7 +135,7 @@ class Circuit:
                     gate_name,
                 ) not in changed_values and len(
                     self.gate_input_states[gate_name]
-                ) == INPUT_COUNT[self.gates[gate_name][0]]:
+                ) == len(GLOBAL_GATES[self.gates[gate_name][0]].inputs):
                     changed_values.append(("gate_input", gate_name))
 
         while len(changed_values):
@@ -151,7 +150,7 @@ class Circuit:
                     )
                 continue
             if changed_value_type == "gate_input":
-                outputs = OPERATORS[self.gates[changed_value_name][0]](
+                outputs = GLOBAL_GATES[self.gates[changed_value_name][0]].operator(
                     self.gate_input_states[changed_value_name]
                 )
                 for destinations, output in zip(
@@ -199,7 +198,7 @@ class Circuit:
                 gates[node_id] = (
                     node_info,
                     dict(
-                        [(i, []) for i in range(OUTPUT_COUNT[node_info])]
+                        [(i, []) for i in range(len(GLOBAL_GATES[node_info].outputs))]
                     ),  # {0: [], 1: []}
                 )
 
